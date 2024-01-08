@@ -6,6 +6,7 @@ const cors = require("cors");
 const bodyParser = require("body-parser");
 const cookieParser = require("cookie-parser");
 
+// Definiendo puerto de conexión
 const port = process.env.PORT || 5000;
 
 // inicializando Express

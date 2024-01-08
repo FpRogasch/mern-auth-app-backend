@@ -1,5 +1,5 @@
 {
-  "name": "backend",
+  "name": "mern-auth-backend",
   "version": "1.0.0",
   "description": "",
   "main": "server.js",
