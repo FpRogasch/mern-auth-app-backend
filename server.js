@@ -5,9 +5,8 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const bodyParser = require("body-parser");
 const cookieParser = require("cookie-parser");
-
-// Definiendo puerto de conexión
-const port = process.env.PORT || 5000;
+const userRoutes = require("./routes/userRoute");
+const errorHandler = require("./middleware/errorMiddleware");
 
 // inicializando Express
 const app = express();
@@ -23,11 +22,19 @@ app.use(cors({
     credentials: true
 }))
 
+// Routes
+
+app.use("/api/users", userRoutes);
 
 app.get("/", (req, res) => {
     res.send("Home Page");
 })
 
+// Error Handler
+app.use(errorHandler);
+
+// Definiendo puerto de conexión
+const port = process.env.PORT || 5000;
 
 mongoose
     .connect(process.env.MONGO_URL)
