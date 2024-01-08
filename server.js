@@ -12,6 +12,18 @@ const port = process.env.PORT || 5000;
 // inicializando Express
 const app = express();
 
+// Middlewares
+app.use(express.json())
+app.use(express.urlencoded({ extended: false }))
+app.use(cookieParser())
+app.use(bodyParser.json())
+
+app.use(cors({ 
+    origin: ["http://localhost:3000", "https://authz-app.vercel.app"],
+    credentials: true
+}))
+
+
 app.get("/", (req, res) => {
     res.send("Home Page");
 })
