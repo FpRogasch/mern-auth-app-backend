@@ -7,7 +7,10 @@ const jwt = require("jsonwebtoken");
 const sendEmail = require("../utils/sendEmail");
 const Token = require("../models/tokenModel");
 const crypto = require("crypto");
+const Cryptr = require("cryptr");
 
+
+const cryptr = new Cryptr(process.env.CRYPTR_KEY);
 
 // Register User
 const registerUser = asyncHandler (async (req, res) => {
@@ -103,6 +106,37 @@ const loginUser = asyncHandler (async (req, res) => {
     }
 
     // Trigger 2FA for unkwon UserAgent
+    const ua = parser(req.headers["user-agent"]);
+    const thisUserAgent = ua.ua;
+    console.log(thisUserAgent);
+
+    const allowwedAgent = user.userAgent.includes(thisUserAgent)
+
+    if (!allowwedAgent) {
+        // Generate 6 digit code
+        const loginCode = Math.floor( 100000 + Math.random() * 900000);
+        console.log(loginCode);
+
+        // Encrypt login code before saving to DB
+        const encryptedLoginCode = cryptr.encrypt(loginCode.toString());
+
+        // Delete token if exists in DB
+        let userToken = await Token.findOne({ userId: user._id })
+        if (userToken) {
+            await userToken.deleteOne();
+        }
+        
+        // Save token to DB
+        await new Token({
+            userId: user._id,
+            lToken: encryptedLoginCode,
+            createdAt: Date.now(),
+            expiresAt: Date.now() + 60 * (60 * 1000) // 1 hour
+        }).save();
+
+        res.status(400);
+        throw new Error("New browser or divice detected.")
+    }
 
     // Generate Token
     const token = generateToken(user._id);
@@ -135,6 +169,124 @@ const loginUser = asyncHandler (async (req, res) => {
         throw new Error("Something went wrong, please try again.");
     }
 
+});
+
+// Send Login Code
+const sendLoginCode = asyncHandler (async (req, res) => {
+    
+    const { email } = req.params;
+    const user = await User.findOne({ email });
+
+    if (!user) {
+        res.status(404);
+        throw new Error("User not found");
+    }
+
+    // Find Login Code in DB
+    let userToken = await Token.findOne({ 
+        userId: user._id,
+        expiresAt: {$gt: Date.now()}
+    });
+
+    if (!userToken) {
+        res.status(404);
+        throw new Error("Invalid or Expired token, please login again.");
+    }
+
+    const loginCode = userToken.lToken;
+    const decryptedLoginCode = cryptr.decrypt(loginCode);
+
+    // Send Login Code Email
+    const subject = "Login Access Code - AUTH:Z";
+    const send_to = email;
+    const sent_from = process.env.EMAIL_USER;
+    const reply_to = "noreply@felipe.com";
+    const template = "loginCode";
+    const name = user.name;
+    const link = decryptedLoginCode;
+
+    try {
+        await sendEmail(
+            subject,
+            send_to,
+            sent_from,
+            reply_to,
+            template,
+            name,
+            link
+        );
+        res.status(200).json({ message: `Access Login Code sent to ${email}` });
+    } catch (err) {
+        res.status(500);
+        throw new Error("Email not sent, please try again.")
+    }
+
+})
+
+// Login With Code
+const loginWithCode = asyncHandler (async (req, res) => {
+    
+    const { email } = req.params;
+    const { loginCode } = req.body;
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+        res.status(404);
+        throw new Error("User not found");
+    }
+
+    // Find user login token
+    const userToken = await Token.findOne({
+        userId: user.id,
+        expiresAt: { $gt: Date.now() },
+    });
+
+    if (!userToken) {
+        res.status(404);
+        throw new Error("Invalid or Expired Token, please login again");
+    }
+
+    const decryptedLoginCode = cryptr.decrypt(userToken.lToken);
+    if (loginCode !== decryptedLoginCode) {
+        res.status(400);
+        throw new Error("Incorrect login Code, please try again.")
+    } else {
+
+        // Register userAgent
+        const ua = parser(req.headers["user-agent"]);
+        const thisUserAgent = ua.ua;
+        user.userAgent.push(thisUserAgent)
+
+        await user.save()
+
+        // Generate Token
+        const token = generateToken(user._id);
+
+        // Send HTTP-only cookie
+        res.cookie("token", token, {
+            path: "/",
+            httpOnly: true,
+            expires: new Date(Date.now() + 1000 * 86400), // 1 day
+            sameSite: "none",
+            secure: true,
+        })
+
+        const { _id, name, email, phone, bio, photo, role, isVerified } = user;
+            
+        res.status(200).json({
+            _id,
+            name, 
+            email, 
+            phone, 
+            bio,
+            photo,
+            role,
+            isVerified,
+            token
+        });
+    }
+
 })
 
 // Logout User
@@ -148,7 +300,7 @@ const logoutUser = asyncHandler (async (req, res) => {
         secure: true,
     });
     res.status(200).json({ message: "Logout successful" })
-})
+});
 
 // Get User
 const getUser = asyncHandler (async (req, res) => {
@@ -170,7 +322,7 @@ const getUser = asyncHandler (async (req, res) => {
         res.status(404);
         throw new Error("User not found");
     }
-})
+});
 
 // Update User
 const updateUser = asyncHandler (async (req, res) => {
@@ -204,7 +356,7 @@ const updateUser = asyncHandler (async (req, res) => {
         throw new Error("User nopt found.");
     }
 
-})
+});
 
 // Delete User
 const deleteUser = asyncHandler (async (req, res) => {
@@ -430,7 +582,7 @@ const forgotPassword = asyncHandler (async (req, res) => {
         rToken: hashedToken,
         createdAt: Date.now(),
         expiresAt: Date.now() + 60 * (60 * 1000) // 1 hour
-    }).save()
+    }).save();
 
     // Construct Reset URL
     const resetUrl = `${process.env.FRONTEND_URL}/resetPassword/${resetToken}`
@@ -460,8 +612,7 @@ const forgotPassword = asyncHandler (async (req, res) => {
         throw new Error("Email not sent, please try again.")
     }
 
-
-})
+});
 
 // Reset Password
 const resetPassword = asyncHandler (async (req, res) => {
@@ -539,5 +690,7 @@ module.exports = {
     verifyUser,
     forgotPassword,
     resetPassword,
-    changePassword
+    changePassword,
+    sendLoginCode,
+    loginWithCode
 };

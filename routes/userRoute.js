@@ -15,7 +15,9 @@ const { registerUser,
         verifyUser,
         forgotPassword,
         resetPassword,
-        changePassword} = require("../controllers/userController");
+        changePassword,
+        sendLoginCode,
+        loginWithCode} = require("../controllers/userController");
 
 router.post("/register", registerUser);
 router.post("/login", loginUser);
@@ -34,5 +36,8 @@ router.patch("/verifyUser/:verificationToken", verifyUser);
 router.post("/forgotPassword", forgotPassword);
 router.patch("/resetPassword/:resetToken", resetPassword);
 router.patch("/changePassword", protect, changePassword);
+
+router.post("/sendLoginCode/:email", sendLoginCode);
+router.post("/loginWithCode/:email", loginWithCode);
 
 module.exports = router
