@@ -23,7 +23,7 @@ const sendEmail = async (subject, send_to, sent_from, reply_to, template, name, 
         viewEngine: {
             extName: ".handlebars",
             partialsDir: path.resolve("./views"),
-            defaultLayout: false
+            defaultLayout: false,
         },
         viewPath: path.resolve("./views"),
         extName: ".handlebars",
@@ -41,9 +41,8 @@ const sendEmail = async (subject, send_to, sent_from, reply_to, template, name, 
         context: {
             name,
             link,
-        }
-
-    }
+        },
+    };
 
     // Send Email
     transporter.sendMail(options, function (err, info){

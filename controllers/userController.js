@@ -639,7 +639,7 @@ const resetPassword = asyncHandler (async (req, res) => {
     user.password = password;
     await user.save();
 
-    res.status(200).json({ message: "Password reset was Successful, please login." });
+    res.status(200).json({ message: "Password Reset Successful, please login." });
 
 })
 
