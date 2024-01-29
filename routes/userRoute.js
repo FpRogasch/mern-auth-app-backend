@@ -17,7 +17,8 @@ const { registerUser,
         resetPassword,
         changePassword,
         sendLoginCode,
-        loginWithCode} = require("../controllers/userController");
+        loginWithCode,
+        loginWithGoogle} = require("../controllers/userController");
 
 router.post("/register", registerUser);
 router.post("/login", loginUser);
@@ -39,5 +40,7 @@ router.patch("/changePassword", protect, changePassword);
 
 router.post("/sendLoginCode/:email", sendLoginCode);
 router.post("/loginWithCode/:email", loginWithCode);
+
+router.post("/google/callback", loginWithGoogle);
 
 module.exports = router
